@@ -27,7 +27,7 @@ from DUO_Consent_Model import (
     profile_strict,
     logger,
 )
-
+import path as path
 import string
 import random
 import matplotlib.pyplot as plt
@@ -436,7 +436,7 @@ class Experiment_Performance:
                 va="bottom",
             )
         plt.tight_layout()
-        plt.savefig(f"figure/sparse_{task}.pdf")
+        plt.savefig(path.FIGURE_DIR / f"sparse_{task}.pdf")
         plt.close()
 
     def _generate_column_chart(self, data, task, role, x_label, y_label, factor=1e3):
@@ -517,14 +517,7 @@ class Experiment_Performance:
         print("xticklabels", xticklabels)
         ax1.set_xticklabels(xticklabels, fontsize=self.font_size)
 
-        # ax1.legend(loc="upper left", ncol=4)
-
-        # self._add_bar_labels(ax1, baseline_local_bars, self.font_size)
-        # self._add_bar_labels(ax1, affordable_local_bars, self.font_size)
-        # self._add_bar_labels(ax1, baseline_polygon_bars, self.font_size)
-        # self._add_bar_labels(ax1, affordable_polygon_bars, self.font_size)
-
-        plt.savefig(f"figure/column_{task}_{role}.pdf")
+        plt.savefig(path.FIGURE_DIR / f"column_{task}_{role}.pdf")
 
     def _plot_bar(self, ax, x, y, label, color, alpha, width):
         return ax.bar(
@@ -732,7 +725,9 @@ class Experiment_Simulation:
         self.requester_list = []
         current_time = datetime.datetime.now().strftime("%m-%d-%H-%M")
         if result_fp is None:
-            self.result_fp = f"result/result_simulation_{current_time}.json"
+            self.result_fp = (
+                path.OUTPUT_DIR / f"result/result_simulation_{current_time}.json"
+            )
         else:
             self.result_fp = result_fp
 
@@ -898,7 +893,7 @@ class Experiment_Simulation:
             data=category_dict,
             x_stick_labels=profile_list,
             y_label="Success Rate (%)",
-            file_name="figure/simulation_category.pdf",
+            file_name=path.FIGURE_DIR / "simulation_category.pdf",
             # title="Categories",
         )
 
@@ -927,7 +922,7 @@ class Experiment_Simulation:
             data=scenario_dict,
             x_stick_labels=x_labels,
             y_label="Success Rate (%)",
-            file_name="figure/simulation_scenario.pdf",
+            file_name=path.FIGURE_DIR / "simulation_scenario.pdf",
             # title="Scenarios",
         )
 

@@ -18,13 +18,9 @@ from enum import Enum
 import yaml
 import random
 from web3.middleware import ExtraDataToPOAMiddleware
+import path as path
 
-
-CURRENT_DIR = Path(__file__).resolve().parent.parent
-DATA_DIR = Path("data")
-os.chdir(CURRENT_DIR)
-
-private_config = yaml.safe_load(open("data/private_config.yaml", "r"))
+private_config = yaml.safe_load(open(path.DATA_DIR / "private_config.yaml", "r"))
 private_key = private_config.get("private_key", None)
 
 # print("CURRENT_DIR", CURRENT_DIR)
@@ -34,11 +30,19 @@ logger = logging.getLogger("affordable_consent")
 logger.setLevel(logging.DEBUG)  # Set to the lowest level to capture all logs
 
 # Create handlers for each log level
-error_handler = logging.FileHandler("logs/affordable_consent_error.log", mode="w")
-warning_handler = logging.FileHandler("logs/affordable_consent_warning.log", mode="w")
-info_handler = logging.FileHandler("logs/affordable_consent_info.log", mode="w")
-critical_handler = logging.FileHandler("logs/affordable_consent_critical.log", mode="w")
-all_handler = logging.FileHandler("logs/affordable_consent_all.log", mode="w")
+error_handler = logging.FileHandler(
+    path.LOG_DIR / "affordable_consent_error.log", mode="w"
+)
+warning_handler = logging.FileHandler(
+    path.LOG_DIR / "affordable_consent_warning.log", mode="w"
+)
+info_handler = logging.FileHandler(
+    path.LOG_DIR / "affordable_consent_info.log", mode="w"
+)
+critical_handler = logging.FileHandler(
+    path.LOG_DIR / "affordable_consent_critical.log", mode="w"
+)
+all_handler = logging.FileHandler(path.LOG_DIR / "affordable_consent_all.log", mode="w")
 console_handler = logging.StreamHandler()
 
 # Set level for each handler
@@ -182,10 +186,10 @@ for c in icd10.chapters:
         #         2 ** country_name_code_dict[k]["index"]
         #     )
 
-group_country_dict = json.load(open("data/group_country.json", "r"))
+group_country_dict = json.load(open(path.DATA_DIR / "group_country.json", "r"))
 
 group_index_dict = {v["abbreviation"]: v["index"] for v in group_country_dict}
-country_index_dict = json.load(open("data/country_index.json", "r"))
+country_index_dict = json.load(open(path.DATA_DIR / "country_index.json", "r"))
 # allowed_group_names = {"EUROPEAN_UNION"}
 
 country_code_name_dict = {v: k for k, v in country_index_dict.items()}
@@ -197,8 +201,8 @@ all_group_names = list(group_index_dict.keys())
 
 class Environment:
     def __init__(self):
-        consent_affordable_fp = Path("solidity", "DUOConsentAffordable.sol")
-        consent_baseline_fp = Path("solidity", "DUOConsentBaseline.sol")
+        consent_affordable_fp = path.SOLIDITY_DIR / "DUOConsentAffordable.sol"
+        consent_baseline_fp = path.SOLIDITY_DIR / "DUOConsentBaseline.sol"
 
         self.interface_affordable = self.compile_solidity(consent_affordable_fp)
         self.interface_baseline = self.compile_solidity(consent_baseline_fp)
