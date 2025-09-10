@@ -9,3 +9,4 @@ data/
 .vscode/
 .conda/
 .venv/
+output/
