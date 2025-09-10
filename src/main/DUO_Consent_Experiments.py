@@ -1154,11 +1154,13 @@ if __name__ == "__main__":
 
     Experiment_Case_Study(local_affordable).start()
 
-    # experiment_simulation = Experiment_Simulation(
-    #     local_affordable, provider_number=100, requester_number=200
-    # )
-    # # experiment_simulation.start()
-    # experiment_simulation.plot(result_fp="result/result_simulation_09-04-11-44.json")
+    experiment_simulation = Experiment_Simulation(
+        local_affordable, provider_number=100, requester_number=200
+    )
+    # experiment_simulation.start()
+    experiment_simulation.plot(
+        result_fp=path.RESULT_DIR / "result_simulation_09-04-11-44.json"
+    )
 
     # performance = Experiment_Performance(
     #     contract_affordable=local_affordable, contract_baseline=local_baseline
