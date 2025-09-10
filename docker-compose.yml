@@ -1,0 +1,14 @@
+# version: "3"
+services:
+  ganache_db:
+    image: trufflesuite/ganache:v7.7.3
+    restart: unless-stopped
+    command: --accounts 5000 -e 1e18 -l 1000000000
+    ports:
+      - 8545:8545
+    environment:
+      - VIRTUAL_PORT=8545
+      - VIRTUAL_HOST=ganache.luce.137.120.31.102.nip.io
+      - LETSENCRYPT_HOST=ganache.luce.137.120.31.102.nip.io
+    volumes:
+      - ${STORAGE_PATH:-./data}/ganache_db:/ganache_db

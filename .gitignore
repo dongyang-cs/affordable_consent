@@ -1,0 +1,11 @@
+# Ignore MacOS files
+.DS_Store
+
+# Ignore logs
+*.log
+
+data/
+
+.vscode/
+.conda/
+.venv/
