@@ -1105,13 +1105,6 @@ class Experiment_Case_Study:
 
         for provider in self.provider_list:
             self.contract.upload(provider)
-            # provider.upload()
-            # logger.info(
-            #     f"provider {provider.name} address {provider.address}, purpose item missed {provider.bool_items - provider.get_purpose_items()} added {provider.get_purpose_items()-provider.bool_items}"
-            # )
-
-        # logger.debug(f"requester7 area {requester7.display_area_affordable()}" )
-        # logger.debug(f"provider3 area {provider3.display_area_affordable()}")
 
     def start(self):
 
