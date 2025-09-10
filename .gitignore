@@ -9,4 +9,5 @@ data/
 .vscode/
 .conda/
 .venv/
-output
+output/
+__pycache__/
