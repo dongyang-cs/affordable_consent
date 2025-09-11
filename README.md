@@ -25,6 +25,7 @@ While the prototype is motivated by healthcare data sharing scenarios, the appro
 From the repository’s main directory, run:
 
 ```bash
+docker compose build
 docker compose up
 ```
 
@@ -34,7 +35,7 @@ docker compose up
 
 ### 4. Install Python Packages
 
-From the `start` directory, run:
+from the folder affordable_consent, run:
 
 ```bash
 uv sync
@@ -60,17 +61,17 @@ The Solidity contracts are included in:
 affordable_consent/src/solidity/
 ```
 
-### Our Approach: DUOConsentAffordable.sol
+### Our Approach: ConsentAffordable.sol
 
 - **`DUOConsentAffordable.sol`** (contract name `ConsentCode`)  
-  Implements the **affordable consent model** described in the manuscript.  
-  - Uses **bitsets and binary operations** to compactly encode **hierarchical preferences**, including:  
-    - **Geographic regions** (groups and countries)  
-    - **Disease categories** (hierarchical classifications, e.g., ICD-10)  
-  - Provides functions to upload, delete, and display terms for both **providers** and **requesters**.  
-  - Consent validation is handled by:  
-    - `CheckArea` → verifies that a requester’s group/countries are a subset of the provider’s.  
-    - `CheckDisease` → verifies that a requester’s disease categories are a subset of the provider’s.  
+  Implements the **affordable consent model** described in the manuscript.
+  - Uses **bitsets and binary operations** to compactly encode **hierarchical preferences**, including:
+    - **Geographic regions** (groups and countries)
+    - **Disease categories** (hierarchical classifications, e.g., ICD-10)
+  - Provides functions to upload, delete, and display terms for both **providers** and **requesters**.
+  - Consent validation is handled by:
+    - `CheckArea` → verifies that a requester’s group/countries are a subset of the provider’s.
+    - `CheckDisease` → verifies that a requester’s disease categories are a subset of the provider’s.
 
 This contract demonstrates the **main contribution** of our approach: **hierarchical, ontology-based consent preferences can be efficiently encoded and validated with bit operations on-chain**, significantly reducing gas costs.
 
@@ -82,9 +83,10 @@ While the Solidity contracts provide the **on-chain proof-of-concept**, the eval
 
 ### Workflow
 
-1. **Deploy contracts locally** (Ganache/Hardhat) or on Polygon testnet (Amoy).  
+1. **Deploy contracts locally** (Ganache/Hardhat) or on Polygon testnet (Amoy).
 2. **Run Python scripts** to simulate uploading and checking consent rules for both providers and requesters.  
    The experiments compare:
+
    - **Baseline contract** (straightforward DUO encoding)
    - **Affordable contract** (bitset-based hierarchical encoding)
 
@@ -96,7 +98,7 @@ While the Solidity contracts provide the **on-chain proof-of-concept**, the eval
 ### Example
 
 ```python
-from DUO_Consent_Model import Environment, Contract_Affordable, Contract_Baseline
+from Consent_Model import Environment, Contract_Affordable, Contract_Baseline
 from experiments import Experiment_Case_Study, Experiment_Simulation, Experiment_Performance
 
 # Setup environment and deploy contracts
@@ -118,8 +120,8 @@ performance.start()
 performance.plot()
 
 ```
----
 
+---
 
 ### 📄 Reference
 
@@ -133,10 +135,3 @@ If you use this prototype in your research, please cite the manuscript:
 
 **Yang, D., Lohachab, A., Celebi, R., & Urovi, V.**  
 _Managing Hierarchical Data Sharing Preferences: A Dynamic Consent for Health-data Sharing in Blockchain-based Networks._
-
-# ♿ Project Structure Explanation
-
-src: codes
-main python code
-DUO_Consent_experiments.py  
-solidity solidity code
