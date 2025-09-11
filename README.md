@@ -50,12 +50,13 @@ If you use this prototype in your work, please acknowledge this repository:
 
 **LUCE Technical Prototype: Dynamic Consent with Hierarchical Data Sharing Preferences.**  
 Manuscript submitted, details will be available soon.  
-Available at: [GitHub Repository](https://github.com/)  
+Available at: [GitHub Repository](https://github.com/dongyang-cs/affordable_consent)
 
 If you use this prototype in your research, please cite the manuscript:  
 
 **Yang, D., Lohachab, A., Celebi, R., & Urovi, V.**  
 *Managing Hierarchical Data Sharing Preferences: A Dynamic Consent for Health-data Sharing in Blockchain-based Networks.*  
+
 
 
 
