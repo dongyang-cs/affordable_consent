@@ -4,7 +4,7 @@ from matplotlib import spines
 import pandas as pd
 from tqdm import tqdm
 
-from DUO_Consent_Model import (
+from Consent_Model import (
     Base_Contract,
     Contract_Affordable,
     Contract_Baseline,
@@ -18,7 +18,7 @@ from DUO_Consent_Model import (
     Contract,
 )
 
-from DUO_Consent_Model import (
+from Consent_Model import (
     disease_list,
     disease_dict,
     profile_list,

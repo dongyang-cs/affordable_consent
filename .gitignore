@@ -10,4 +10,4 @@ data/
 .conda/
 .venv/
 output/
-__pycache__/
+**/__pycache__/**

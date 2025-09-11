@@ -20,7 +20,7 @@ import random
 from web3.middleware import ExtraDataToPOAMiddleware
 import path as path
 
-private_config = yaml.safe_load(open(path.DATA_DIR / "private_config.yaml", "r"))
+private_config = yaml.safe_load(open(path.DATA_DIR / "config/private_config.yaml", "r"))
 private_key = private_config.get("private_key", None)
 
 # print("CURRENT_DIR", CURRENT_DIR)
@@ -359,9 +359,9 @@ class Environment:
             assert tx_receipt["status"] == 1
             contract_address = tx_receipt.contractAddress
             polygon_config = {"contract_address": contract_address}
-            json.dump(polygon_config, open("data/polygon.json", "w"))
+            json.dump(polygon_config, open(path.CONFIG_DIR / "polygon.json", "w"))
         else:
-            polygon_config = json.load(open("data/polygon.json", "r"))
+            polygon_config = json.load(open(path.CONFIG_DIR / "polygon.json", "r"))
             contract_address = polygon_config.get("contract_address", None)
 
         # contract_address = w3.to_checksum_address(contract_address)

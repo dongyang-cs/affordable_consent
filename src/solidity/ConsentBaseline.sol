@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8;
-import "./DUOConsentBase.sol";
+import "./ConsentBase.sol";
 
 contract ConsentCode is ConsentBase {
     //  constructor() {
