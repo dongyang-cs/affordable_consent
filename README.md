@@ -109,11 +109,11 @@ performance = Experiment_Performance(contract_affordable=local_affordable, contr
 performance.start()
 performance.plot()
 
-
+```
 ---
 
 
-## 📄 Reference
+### 📄 Reference
 
 If you use this prototype in your work, please acknowledge this repository:  
 
