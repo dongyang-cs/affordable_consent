@@ -45,11 +45,25 @@ uv sync
 
 ## 📊 Run Experiments
 
-To test and reproduce the experiments, run:
+### Revisions
 
-```bash
-python src/main/Consent_Experiments.py
-```
+This is a good, clear set of instructions. Here is a revised version that is more standard for technical documentation, making it easier for users to follow.
+
+---
+
+To run and reproduce the experiments, follow these steps:
+
+1.  First, ensure you have activated your Python environment.
+    - _(e.g., `source /path/to/your/env/bin/activate`)_
+2.  Then, run the main script from the project's root directory:
+    ```bash
+    python src/main/Consent_Experiments.py
+    ```
+
+The script accepts the following command-line arguments:
+
+- `--env`: Specifies the environment. Available options are **"local"** and **"polygon"**. (Default: `"local"`)
+- `--experiment`: Specifies which experiments to run. Choices include **"case_study"**, **"simulation"**, and **"performance"**. (By default, all experiments are run.)
 
 ---
 
