@@ -20,7 +20,7 @@ import random
 from web3.middleware import ExtraDataToPOAMiddleware
 import path as path
 
-private_config = yaml.safe_load(open(path.DATA_DIR / "config/private_config.yaml", "r"))
+private_config = yaml.safe_load(open(path.CONFIG_DIR / "private_config.yaml", "r"))
 private_key = private_config.get("private_key", None)
 
 # print("CURRENT_DIR", CURRENT_DIR)
@@ -201,8 +201,8 @@ all_group_names = list(group_index_dict.keys())
 
 class Environment:
     def __init__(self):
-        consent_affordable_fp = path.SOLIDITY_DIR / "DUOConsentAffordable.sol"
-        consent_baseline_fp = path.SOLIDITY_DIR / "DUOConsentBaseline.sol"
+        consent_affordable_fp = path.SOLIDITY_DIR / "ConsentAffordable.sol"
+        consent_baseline_fp = path.SOLIDITY_DIR / "ConsentBaseline.sol"
 
         self.interface_affordable = self.compile_solidity(consent_affordable_fp)
         self.interface_baseline = self.compile_solidity(consent_baseline_fp)
