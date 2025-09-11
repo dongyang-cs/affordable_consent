@@ -52,7 +52,76 @@ python src/main/Consent_Experiments.py
 
 ---
 
-## 📄 Reference
+## 💻 Solidity Contracts
+
+The Solidity contracts are included in:
+
+```
+affordable_consent/src/solidity/
+```
+
+### Our Approach: DUOConsentAffordable.sol
+
+- **`DUOConsentAffordable.sol`** (contract name `ConsentCode`)  
+  Implements the **affordable consent model** described in the manuscript.  
+  - Uses **bitsets and binary operations** to compactly encode **hierarchical preferences**, including:  
+    - **Geographic regions** (groups and countries)  
+    - **Disease categories** (hierarchical classifications, e.g., ICD-10)  
+  - Provides functions to upload, delete, and display terms for both **providers** and **requesters**.  
+  - Consent validation is handled by:  
+    - `CheckArea` → verifies that a requester’s group/countries are a subset of the provider’s.  
+    - `CheckDisease` → verifies that a requester’s disease categories are a subset of the provider’s.  
+
+This contract demonstrates the **main contribution** of our approach: **hierarchical, ontology-based consent preferences can be efficiently encoded and validated with bit operations on-chain**, significantly reducing gas costs.
+
+---
+
+## 🧪 Python Experiments
+
+While the Solidity contracts provide the **on-chain proof-of-concept**, the evaluation and performance benchmarking are done using Python scripts.
+
+### Workflow
+
+1. **Deploy contracts locally** (Ganache/Hardhat) or on Polygon testnet (Amoy).  
+2. **Run Python scripts** to simulate uploading and checking consent rules for both providers and requesters.  
+   The experiments compare:
+   - **Baseline contract** (straightforward DUO encoding)
+   - **Affordable contract** (bitset-based hierarchical encoding)
+
+3. **Collect and analyze results** on:
+   - Gas usage
+   - Execution time
+   - Access validation outcomes
+
+### Example
+
+```python
+from DUO_Consent_Model import Environment, Contract_Affordable, Contract_Baseline
+from experiments import Experiment_Case_Study, Experiment_Simulation, Experiment_Performance
+
+# Setup environment and deploy contracts
+environment = Environment()
+local_baseline = Contract_Baseline(environment.deploy_contract_local(environment.interface_baseline))
+local_affordable = Contract_Affordable(environment.deploy_contract_local(environment.interface_affordable))
+
+# Run case study
+Experiment_Case_Study(local_affordable).start()
+
+# Run simulation with 100 providers and 200 requesters
+experiment_simulation = Experiment_Simulation(local_affordable, provider_number=100, requester_number=200)
+experiment_simulation.start()
+experiment_simulation.plot()
+
+# Run performance experiments (gas/time benchmarking)
+performance = Experiment_Performance(contract_affordable=local_affordable, contract_baseline=local_baseline)
+performance.start()
+performance.plot()
+
+```
+---
+
+
+### 📄 Reference
 
 If you use this prototype in your work, please acknowledge this repository:
 
