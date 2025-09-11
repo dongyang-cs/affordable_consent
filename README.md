@@ -44,6 +44,30 @@ python src/main/DUO_Consent_Experiments.py
 
 ---
 
+## 💻 Solidity Contracts
+
+The Solidity contracts are included in:
+
+```
+affordable_consent/src/solidity/
+```
+
+### Our Approach: DUOConsentAffordable.sol
+
+- **`DUOConsentAffordable.sol`** (contract name `ConsentCode`)  
+  Implements the **affordable consent model** described in the manuscript.  
+  - Uses **bitsets and binary operations** to compactly encode **hierarchical preferences**, including:  
+    - **Geographic regions** (groups and countries)  
+    - **Disease categories** (hierarchical classifications, e.g., ICD-10)  
+  - Provides functions to upload, delete, and display terms for both **providers** and **requesters**.  
+  - Consent validation is handled by:  
+    - `CheckArea` → verifies that a requester’s group/countries are a subset of the provider’s.  
+    - `CheckDisease` → verifies that a requester’s disease categories are a subset of the provider’s.  
+
+This contract demonstrates the **main contribution** of our approach: **hierarchical, ontology-based consent preferences can be efficiently encoded and validated with bit operations on-chain**, significantly reducing gas costs.
+
+---
+
 ## 📄 Reference
 
 If you use this prototype in your work, please acknowledge this repository:  
