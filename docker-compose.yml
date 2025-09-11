@@ -8,7 +8,5 @@ services:
       - 8545:8545
     environment:
       - VIRTUAL_PORT=8545
-      # - VIRTUAL_HOST=ganache.luce.137.120.31.102.nip.io
-      # - LETSENCRYPT_HOST=ganache.luce.137.120.31.102.nip.io
     volumes:
-      - ${STORAGE_PATH:-./data}/ganache_db:/ganache_db
+      - ${STORAGE_PATH:-./running_data}/ganache_db:/ganache_db

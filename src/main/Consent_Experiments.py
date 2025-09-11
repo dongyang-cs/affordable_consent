@@ -3,6 +3,7 @@ import json
 from matplotlib import spines
 import pandas as pd
 from tqdm import tqdm
+import argparse
 
 from Consent_Model import (
     Base_Contract,
@@ -404,6 +405,7 @@ class Experiment_Performance:
         import matplotlib.pyplot as plt
         import pandas as pd
 
+
         fig, ax = plt.subplots(figsize=(4, 3), dpi=300)
         x_value = [data[key] for key in self.data_key_label.keys()]
         x_labels = [
@@ -723,7 +725,7 @@ class Experiment_Simulation:
         self.requester_number = requester_number
         self.provider_number = provider_number
         self.requester_list = []
-        current_time = datetime.datetime.now().strftime("%m-%d-%H-%M")
+        current_time = datetime.datetime.now().strftime("%m-%d")
         if result_fp is None:
             self.result_fp = (
                 path.OUTPUT_DIR / f"result/result_simulation_{current_time}.json"
@@ -1134,30 +1136,58 @@ class Experiment_Case_Study:
 
         print("\n".join(result_list))
 
+def main():
+    parser = argparse.ArgumentParser(description="Consent Experiments Runner")
+    parser.add_argument(
+        "--env",
+        choices=["local", "polygon"],
+        default="local",
+        help="Environment to use: local or polygon",
+    )
+    parser.add_argument(
+        "--experiment",
+        choices=["case_study", "simulation", "performance"],
+        nargs="+",
+        default=["case_study", "simulation", "performance"],
+        help="Experiments to run",
+    )
+    args = parser.parse_args()
+
+    # Setup environment
+    environment = Environment()
+    if args.env == "local":
+        baseline_contract = Contract_Baseline(
+            environment.deploy_contract_local(environment.interface_baseline)
+        )
+        affordable_contract = Contract_Affordable(
+            environment.deploy_contract_local(environment.interface_affordable)
+        )
+    else:
+        baseline_contract = Contract_Baseline(
+            environment.deploy_contract_polygon(environment.interface_baseline)
+        )
+        affordable_contract = Contract_Affordable(
+            environment.deploy_contract_polygon(environment.interface_affordable)
+        )
+
+    # Run experiments
+    if "case_study" in args.experiment:
+        Experiment_Case_Study(affordable_contract).start()
+
+    if "simulation" in args.experiment:
+        experiment_simulation = Experiment_Simulation(
+            affordable_contract, provider_number=10, requester_number=20
+        )
+        experiment_simulation.start()
+        # result_fp = args.result_fp or (path.RESULT_DIR / "result_simulation_09-04-11-44.json")
+        experiment_simulation.plot()
+
+    if "performance" in args.experiment:
+        performance = Experiment_Performance(
+            contract_affordable=affordable_contract, contract_baseline=baseline_contract
+        )
+        performance.start()
+        performance.plot()
 
 if __name__ == "__main__":
-
-    environment = Environment()
-    local_baseline = Contract_Baseline(
-        environment.deploy_contract_local(environment.interface_baseline)
-    )
-    local_affordable = Contract_Affordable(
-        environment.deploy_contract_local(environment.interface_affordable)
-    )
-
-    Experiment_Case_Study(local_affordable).start()
-
-    experiment_simulation = Experiment_Simulation(
-        local_affordable, provider_number=100, requester_number=200
-    )
-    # experiment_simulation.start()
-    experiment_simulation.plot(
-        result_fp=path.RESULT_DIR / "result_simulation_09-04-11-44.json"
-    )
-
-    # performance = Experiment_Performance(
-    #     contract_affordable=local_affordable, contract_baseline=local_baseline
-    # )
-    # performance.start()
-    # performance.plot()
-    # performance.plot_sparse()
+    main()
