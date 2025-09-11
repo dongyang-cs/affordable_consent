@@ -68,6 +68,51 @@ This contract demonstrates the **main contribution** of our approach: **hierarch
 
 ---
 
+## 🧪 Python Experiments
+
+While the Solidity contracts provide the **on-chain proof-of-concept**, the evaluation and performance benchmarking are done using Python scripts.
+
+### Workflow
+
+1. **Deploy contracts locally** (Ganache/Hardhat) or on Polygon testnet (Amoy).  
+2. **Run Python scripts** to simulate uploading and checking consent rules for both providers and requesters.  
+   The experiments compare:
+   - **Baseline contract** (straightforward DUO encoding)
+   - **Affordable contract** (bitset-based hierarchical encoding)
+
+3. **Collect and analyze results** on:
+   - Gas usage
+   - Execution time
+   - Access validation outcomes
+
+### Example
+
+```python
+from DUO_Consent_Model import Environment, Contract_Affordable, Contract_Baseline
+from experiments import Experiment_Case_Study, Experiment_Simulation, Experiment_Performance
+
+# Setup environment and deploy contracts
+environment = Environment()
+local_baseline = Contract_Baseline(environment.deploy_contract_local(environment.interface_baseline))
+local_affordable = Contract_Affordable(environment.deploy_contract_local(environment.interface_affordable))
+
+# Run case study
+Experiment_Case_Study(local_affordable).start()
+
+# Run simulation with 100 providers and 200 requesters
+experiment_simulation = Experiment_Simulation(local_affordable, provider_number=100, requester_number=200)
+experiment_simulation.start()
+experiment_simulation.plot()
+
+# Run performance experiments (gas/time benchmarking)
+performance = Experiment_Performance(contract_affordable=local_affordable, contract_baseline=local_baseline)
+performance.start()
+performance.plot()
+
+
+---
+
+
 ## 📄 Reference
 
 If you use this prototype in your work, please acknowledge this repository:  
