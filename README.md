@@ -45,12 +45,6 @@ uv sync
 
 ## 📊 Run Experiments
 
-### Revisions
-
-This is a good, clear set of instructions. Here is a revised version that is more standard for technical documentation, making it easier for users to follow.
-
----
-
 To run and reproduce the experiments, follow these steps:
 
 1.  First, ensure you have activated your Python environment.
@@ -65,7 +59,7 @@ The script accepts the following command-line arguments:
 - `--env`: Specifies the environment. Available options are **"local"** and **"polygon"**. (Default: `"local"`)
 - `--experiment`: Specifies which experiments to run. Choices include **"case_study"**, **"simulation"**, and **"performance"**. (By default, all experiments are run.)
 
----
+To test on the Amoy network, please fill in your private key in the `private_key` field of the `res\config\private_config.yaml` file. You must also ensure that the key has a sufficient balance of Matic on the Amoy network to cover transaction fees.
 
 ## 💻 Solidity Contracts
 
