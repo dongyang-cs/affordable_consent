@@ -144,6 +144,7 @@ If you use this prototype in your research, please cite the manuscript:
 **Yang, D., Lohachab, A., Celebi, R., & Urovi, V.**  
 _Managing Hierarchical Data Sharing Preferences: A Dynamic Consent for Health-data Sharing in Blockchain-based Networks._
 
-Our work are based on the work of Vikas.
+Our work are based on the work of Vikas:
+
 **Vikas Jaiman, and Visara Urovi**  
  _A Consent Model for Blockchain-Based Health Data Sharing Platforms_. IEEE Access 8 (2020): 143734–45. https://doi.org/10.1109/ACCESS.2020.3014565.
