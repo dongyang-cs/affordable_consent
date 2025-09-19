@@ -189,12 +189,21 @@ for c in icd10.chapters:
 group_country_dict = json.load(open(path.DATA_DIR / "group_country.json", "r"))
 
 group_index_dict = {v["abbreviation"]: v["index"] for v in group_country_dict}
-country_index_dict = json.load(open(path.DATA_DIR / "country_index.json", "r"))
+country_dict = json.load(open(path.DATA_DIR / "country_dict.json", "r"))
 # allowed_group_names = {"EUROPEAN_UNION"}
 
-country_code_name_dict = {v: k for k, v in country_index_dict.items()}
+country_order_dict = {key: value["index"] for key, value in country_dict.items()}
+country_code_dict = {
+    key: 1 << (value["index"] - 1) for key, value in country_dict.items()
+}
 
-all_countries_name = list(country_index_dict.keys())
+print(
+    f" Netherlands order {country_order_dict['NLD']}, code {country_code_dict['NLD']}"
+)
+
+country_code_name_dict = {v: k for k, v in country_code_dict.items()}
+
+all_countries_name = list(country_dict.keys())
 
 all_group_names = list(group_index_dict.keys())
 
@@ -480,9 +489,9 @@ class Person:
         country_names=None,
         group_names=None,
         disease_items=None,
-        start_year=2021,
-        start_month=1,
-        start_day=1,
+        start_year=None,
+        start_month=None,
+        start_day=None,
         hold_month=12,
         profile_dict=None,
         level=profile_open,
@@ -780,7 +789,7 @@ class Base_Contract:
         except Exception as e:
             print(f"error in upload_date {e}")
             logger.error(
-                f"error in upload_date, role {person.role}, address {person.address}, start_year {person.start_year}, start_month {person.start_month}, start_day {person.start_day}, hold_month {person.hold_month}"
+                f"error in upload_date, name {person.name}, role {person.role}, address {person.address}, start_year {person.start_year}, start_month {person.start_month}, start_day {person.start_day}, hold_month {person.hold_month}"
             )
 
         # logger.info(
@@ -963,7 +972,7 @@ class Contract_Affordable(Base_Contract):
 
         for item in group_country_dict:
             countries = item["members"]
-            countries_value = sum([country_index_dict[c] for c in countries])
+            countries_value = sum([country_code_dict[c] for c in countries])
             group_index = item["index"]
             country_group_dict[group_index] = countries_value
 
@@ -998,7 +1007,7 @@ class Contract_Affordable(Base_Contract):
         # #     return self.send_transaction(func)
 
         if person.country_names is not None:
-            country_codes = [country_index_dict[c] for c in person.country_names]
+            country_codes = [country_code_dict[c] for c in person.country_names]
             country_code = sum(country_codes)
         else:
             country_code = 0
@@ -1098,12 +1107,10 @@ class Contract_Baseline(Base_Contract):
 
     def upload_area(self, person: Person) -> TransactionResult:
 
-        country_codes = [
-            country_name_code_dict[c]["index"] for c in person.country_names
-        ]
+        country_codes = [country_order_dict[c] for c in person.country_names]
 
         # print("UploadCountryItems", country_codes)
-        if hasattr(person, "group_names"):
+        if hasattr(person, "group_names") and person.group_names is not None:
             group_codes = [group_index_dict[g] for g in person.group_names]
         else:
             group_codes = []

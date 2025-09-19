@@ -364,6 +364,7 @@ contract ConsentBase {
     ) public view returns (bool) {
         Date memory requester_date = requesterDateMapping[_requester_address];
         Date memory provider_date = providerDateMapping[_provider_address];
+
         if (requester_date.Months > provider_date.Months) {
             return false;
         }

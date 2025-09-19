@@ -146,5 +146,5 @@ _Managing Hierarchical Data Sharing Preferences: A Dynamic Consent for Health-da
 
 Our work are based on the work of Vikas:
 
-**Vikas Jaiman, and Visara Urovi**  
- _A Consent Model for Blockchain-Based Health Data Sharing Platforms_. IEEE Access 8 (2020): 143734–45. https://doi.org/10.1109/ACCESS.2020.3014565.
+Vikas Jaiman, and Visara Urovi
+_A Consent Model for Blockchain-Based Health Data Sharing Platforms_. IEEE Access 8 (2020): 143734–45. https://doi.org/10.1109/ACCESS.2020.3014565.
