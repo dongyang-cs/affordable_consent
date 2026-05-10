@@ -1144,13 +1144,10 @@ def main():
         default="local",
         help="Environment to use: local or polygon",
     )
-    parser.add_argument(
-        "--experiment",
-        choices=["case_study", "simulation", "performance"],
-        nargs="+",
-        default=["case_study", "simulation", "performance"],
-        help="Experiments to run",
-    )
+    parser.add_argument("--case_study", default=False, action="store_true", help="Run case study experiment")
+    parser.add_argument("--simulation", default=True, action="store_true", help="Run simulation experiment")    
+    parser.add_argument("--performance", default=False, action="store_true", help="Run performance experiment")
+
     args = parser.parse_args()
 
     # Setup environment
@@ -1171,18 +1168,18 @@ def main():
         )
 
     # Run experiments
-    if "case_study" in args.experiment:
+    if args.case_study:
         Experiment_Case_Study(affordable_contract).start()
 
-    if "simulation" in args.experiment:
+    if args.simulation:
         experiment_simulation = Experiment_Simulation(
-            affordable_contract, provider_number=10, requester_number=20
+            affordable_contract, provider_number=100, requester_number=1000
         )
         experiment_simulation.start()
         # result_fp = args.result_fp or (path.RESULT_DIR / "result_simulation_09-04-11-44.json")
         experiment_simulation.plot()
 
-    if "performance" in args.experiment:
+    if args.performance:
         performance = Experiment_Performance(
             contract_affordable=affordable_contract, contract_baseline=baseline_contract
         )
