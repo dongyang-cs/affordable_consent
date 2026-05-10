@@ -27,6 +27,9 @@ from Consent_Model import (
     profile_medium,
     profile_strict,
     logger,
+    country_code_name_dict,
+    country_code_dict,
+    country_order_dict,
 )
 import path as path
 import string
@@ -39,10 +42,11 @@ from enum import Enum
 
 
 class Experiment_Performance:
+
     def __init__(
         self,
-        contract_baseline: Base_Contract,
-        contract_affordable: Base_Contract,
+        contract_baseline: Contract_Baseline,
+        contract_affordable: Contract_Affordable,
         enable_online=False,
     ):
         self.enable_online = enable_online
@@ -124,7 +128,8 @@ class Experiment_Performance:
             )
 
         result_fp = (
-            f"result/{self.env.name}_disease_{'one' if one_group else 'whole'}.json"
+            path.RESULT_DIR
+            / f"{self.env.name}_disease_{'one' if one_group else 'whole'}.json"
         )
         json.dump(disease_data, open(result_fp, "w"), indent=4)
 
@@ -134,9 +139,7 @@ class Experiment_Performance:
         data_result = []
 
         for interval in tqdm(self.intervals):
-            countries = self._generate_items(
-                list(country_name_code_dict.keys()), interval
-            )
+            countries = self._generate_items(list(country_code_dict.keys()), interval)
             provider1.country_names = countries
             requester1.country_names = countries
             self._prepare_entities(provider1, requester1)
@@ -162,7 +165,9 @@ class Experiment_Performance:
                 }
             )
         json.dump(
-            data_result, open(f"result/{self.env.name}_area{label}.json", "w"), indent=4
+            data_result,
+            open(path.RESULT_DIR / f"{self.env.name}_area{label}.json", "w"),
+            indent=4,
         )
 
     def _initialize_provider_requester(self, entity_type):
@@ -395,51 +400,6 @@ class Experiment_Performance:
             "Interval",
             "Gas Used(1000 units)",
         )
-
-    def plot_sparse(self, label=""):
-        self._sparse_plot_time(label=label)
-
-        # print("result_polygon", result_polygon)
-
-    def _plot_sparse(self, data, task, role, x_label, y_label, factor=1e3):
-        import matplotlib.pyplot as plt
-        import pandas as pd
-
-
-        fig, ax = plt.subplots(figsize=(4, 3), dpi=300)
-        x_value = [data[key] for key in self.data_key_label.keys()]
-        x_labels = [
-            self.data_key_label[key]["label"] for key in self.data_key_label.keys()
-        ]
-        colors = [
-            self.data_key_label[key]["color"] for key in self.data_key_label.keys()
-        ]
-        # values = [data.get(label, 0) for label in x_labels]
-        bars = ax.bar(
-            x_labels,
-            x_value,
-            color=colors,
-            edgecolor="black",
-            alpha=1,
-            width=0.8,
-        )
-        # ax.set_xlabel(x_label)
-        ax.set_ylabel(y_label)
-        ax.set_ylim(0, max(x_value) * 1.2)
-        # ax.set_title("Bar Plot of Four Categories")
-        for bar in bars:
-            height = int(bar.get_height())
-            ax.annotate(
-                f"{height}",
-                xy=(bar.get_x() + bar.get_width() / 2, height),
-                xytext=(0, 3),
-                textcoords="offset points",
-                ha="center",
-                va="bottom",
-            )
-        plt.tight_layout()
-        plt.savefig(path.FIGURE_DIR / f"sparse_{task}.pdf")
-        plt.close()
 
     def _generate_column_chart(self, data, task, role, x_label, y_label, factor=1e3):
         import matplotlib.pyplot as plt
@@ -976,8 +936,8 @@ class Experiment_Case_Study:
             description=r"Provider.\ref{provider:d}",
             bool_items={DUO.TimeLimitOnUse},
             # country_names=["*"],
-            start_year=2024,
-            start_month=6,
+            start_year=2026,
+            start_month=1,
             start_day=1,
             hold_month=6,
             # disease_items=["*"],
@@ -996,8 +956,8 @@ class Experiment_Case_Study:
             env=self.env,
             description="Requester1",
             bool_items={DUO.TimeLimitOnUse},
-            start_year=2024,
-            start_month=6,
+            start_year=2026,
+            start_month=1,
             start_day=1,
             hold_month=6,
         )
@@ -1064,10 +1024,10 @@ class Experiment_Case_Study:
             env=self.env,
             description="Requester8",
             bool_items={DUO.TimeLimitOnUse},
-            start_year=2024,
+            start_year=2026,
             start_month=1,
             start_day=1,
-            hold_month=6,
+            hold_month=12,
             # country_names=["*"],
             # disease_items=["*"],
         )
@@ -1077,6 +1037,10 @@ class Experiment_Case_Study:
             env=self.env,
             description="Requester9",
             bool_items={DUO.GeneticStudiesOnly},
+            # start_year=2026,
+            # start_month=1,
+            # start_day=1,
+            # hold_month=6,
             # country_names=["*"],
             # disease_items=["*"],
         )
@@ -1136,6 +1100,7 @@ class Experiment_Case_Study:
 
         print("\n".join(result_list))
 
+
 def main():
     parser = argparse.ArgumentParser(description="Consent Experiments Runner")
     parser.add_argument(
@@ -1177,14 +1142,15 @@ def main():
         )
         experiment_simulation.start()
         # result_fp = args.result_fp or (path.RESULT_DIR / "result_simulation_09-04-11-44.json")
-        experiment_simulation.plot()
+        # experiment_simulation.plot()
 
     if args.performance:
         performance = Experiment_Performance(
             contract_affordable=affordable_contract, contract_baseline=baseline_contract
         )
         performance.start()
-        performance.plot()
+        # performance.plot()
+
 
 if __name__ == "__main__":
     main()

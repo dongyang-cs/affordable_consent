@@ -9,7 +9,7 @@ running_data/
 .vscode/
 .conda/
 .venv/
-output/
+output//** 
 **/__pycache__/**
 **/*.pyc
 **/*.pyo
