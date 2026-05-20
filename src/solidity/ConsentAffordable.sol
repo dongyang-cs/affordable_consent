@@ -131,9 +131,7 @@ contract ConsentCode is ConsentBase {
 
     function delete_area(
         uint8 role,
-        address _address,
-        uint8[] memory Group_Code,
-        uint8[] memory Country_Code
+        address _address
     ) public {
         Terms storage terms = TermsByRole(role, _address);
         delete terms.Area_Group_Affordable;

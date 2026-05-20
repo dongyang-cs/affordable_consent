@@ -14,6 +14,8 @@ import logging
 from pathlib import Path
 import re
 import enum
+import urllib.error
+import urllib.request
 from enum import Enum
 import yaml
 import random
@@ -207,14 +209,15 @@ all_countries_name = list(country_dict.keys())
 
 all_group_names = list(group_index_dict.keys())
 
-
-class Environment:
+class Contracts:
     def __init__(self):
         consent_affordable_fp = path.SOLIDITY_DIR / "ConsentAffordable.sol"
         consent_baseline_fp = path.SOLIDITY_DIR / "ConsentBaseline.sol"
+        consent_offline_fp = path.SOLIDITY_DIR / "ConsentOffline.sol"
 
         self.interface_affordable = self.compile_solidity(consent_affordable_fp)
         self.interface_baseline = self.compile_solidity(consent_baseline_fp)
+        self.interface_offline = self.compile_solidity(consent_offline_fp)
 
     def compile_solidity(self, file_path: Path):
         compiled_sol = solcx.compile_files(
@@ -222,6 +225,7 @@ class Environment:
             solc_version=solcx_version,
             output_values=["abi", "bin", "bin-runtime"],
             optimize=True,
+            optimize_runs=200
         )
         interface = compiled_sol[f"{file_path.as_posix()}:ConsentCode"]
         abi = interface["abi"]
@@ -229,6 +233,19 @@ class Environment:
         bytecode_runtime = interface["bin-runtime"]
         # logger.info(f"consent keys {interface.keys()}")
         return interface
+
+class Environment:
+    def __init__(self):
+        # consent_affordable_fp = path.SOLIDITY_DIR / "ConsentAffordable.sol"
+        # consent_baseline_fp = path.SOLIDITY_DIR / "ConsentBaseline.sol"
+        # consent_offline_fp = path.SOLIDITY_DIR / "ConsentOffline.sol"
+
+        # self.interface_affordable = self.compile_solidity(consent_affordable_fp)
+        # self.interface_baseline = self.compile_solidity(consent_baseline_fp)
+        # self.interface_offline = self.compile_solidity(consent_offline_fp)
+        pass
+
+    
 
     def deploy_contract_local(self, consent_interface: Dict, force_deploy=False):
         startTime = datetime.now()
@@ -344,7 +361,7 @@ class Environment:
                 {
                     "from": account.address,
                     "nonce": w3.eth.get_transaction_count(account.address),
-                    "gas": int(2e6),
+                    "gas": int(1e7),
                     "gasPrice": w3.eth.gas_price,
                 }
             )
@@ -361,7 +378,7 @@ class Environment:
             )
 
             # Send transaction
-            tx_hash = w3.eth.send_raw_transaction(signed_txn.rawTransaction)
+            tx_hash = w3.eth.send_raw_transaction(signed_txn.raw_transaction)
 
             # Wait for transaction receipt
             tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
@@ -515,7 +532,7 @@ class Person:
 
             # balance = w3.eth.get_balance(address)
         else:
-            self.address = env.accounts.pop()
+            self.address = env.accounts[0]
 
             # print(f"balance of {address} is {balance}")
 
@@ -763,6 +780,7 @@ class Base_Contract:
         self.w3 = env.w3
         self.contract = env.contract
         self.functions = env.contract.functions
+        self.name = "base"
 
     def update_area_group_relation(self, person):
         pass
@@ -896,14 +914,14 @@ class Base_Contract:
             time_diff = end_time - start_time
             return TransactionResult(time_used=time_diff, result=receipt)
         elif self.env.name == TestEnum.polygon.name:
-            start_time = time.time_ns()
+
             build_transaction = func.build_transaction(dynamic_fee_transaction)
             signed_txn = self.w3.eth.account.sign_transaction(
                 build_transaction, private_key=private_key
             )
             start_time = time.time_ns()
             # logger.info(f"signed_txn {signed_txn}")
-            tx_hash = self.w3.eth.send_raw_transaction(signed_txn.rawTransaction)
+            tx_hash = self.w3.eth.send_raw_transaction(signed_txn.raw_transaction)
             receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
             end_time = time.time_ns()
 
@@ -965,6 +983,7 @@ class Base_Contract:
 class Contract_Affordable(Base_Contract):
     def __init__(self, env):
         super().__init__(env)
+        self.name = "affordable"
 
     def update_area_group_relation(self) -> TransactionResult:
 
@@ -1093,17 +1112,18 @@ class Contract_Affordable(Base_Contract):
         return self.send_transaction(func, person)
 
     def delete_area(self, person: Person) -> TransactionResult:
-        function = self.contract.delete_area(person.role, person.address)
+        function = self.functions.delete_area(person.role, person.address)
         return self.send_transaction(function, person)
 
     def delete_disease(self, person: Person):
-        function = self.contract.delete_disease(person.role, person.address)
+        function = self.contract.functions.delete_disease(person.role, person.address)
         return self.send_transaction(function, person)
 
 
 class Contract_Baseline(Base_Contract):
     def __init__(self, env):
         super().__init__(env)
+        self.name = "baseline"
 
     def upload_area(self, person: Person) -> TransactionResult:
 
@@ -1136,17 +1156,19 @@ class Contract_Baseline(Base_Contract):
         return self.send_transaction(func, person)
 
     def delete_area(self, person: Person) -> TransactionResult:
-        country_codes = [country_name_code_dict[c]["index"] for c in self.country_names]
+        if person.country_names is None:
+            person.country_names = []
+        country_codes = [country_order_dict[c] for c in person.country_names]
 
         # print("UploadCountryItems", country_codes)
-        if hasattr(self, "group_names"):
-            group_codes = [group_index_dict[g] for g in self.group_names]
+        if hasattr(person, "group_names") and person.group_names is not None:
+            group_codes = [group_index_dict[g] for g in person.group_names]
         else:
             group_codes = []
 
         func = self.contract.functions.delete_area(
-            self.role,
-            self.address,
+            person.role,
+            person.address,
             group_codes,
             country_codes,
         )
@@ -1155,13 +1177,177 @@ class Contract_Baseline(Base_Contract):
         return self.send_transaction(func, person)
 
     def delete_disease(self, person):
+        if person.disease_items is None:
+            person.disease_items = []
         func = self.contract.functions.delete_disease(
-            self.role, self.address, [diseaseCode2Int(d) for d in self.disease_items]
+            person.role, person.address, [diseaseCode2Int(d) for d in person.disease_items]
+        )
+        return self.send_transaction(func, person)
+    
+
+
+
+class Contract_Offline(Base_Contract):
+    def __init__(self, env):
+        super().__init__(env)
+        self.name = "offline"
+        self.http_url = os.getenv("CONSENT_KV_BASE_URL", "http://localhost:8500/v1/kv/consent").rstrip("/")
+
+    def _get_person_key(self, person: Person):
+        return f"{person.address.lower()}-{person.role}"
+
+    def upload_area(self, person: Person) -> TransactionResult:
+
+        country_codes = [country_order_dict[c] for c in person.country_names]
+
+        # print("UploadCountryItems", country_codes)
+        if hasattr(person, "group_names") and person.group_names is not None:
+            group_codes = [group_index_dict[g] for g in person.group_names]
+        else:
+            group_codes = []
+
+        area_payload = {
+            "role": person.role,
+            "address": person.address,
+            "group_codes": group_codes,
+            "country_codes": country_codes,
+        }
+        payload_bytes = json.dumps(
+            area_payload, sort_keys=True, separators=(",", ":")
+        ).encode("utf-8")
+
+
+        area_key = self._get_person_key(person)
+        area_uri = f"{self.http_url}/{area_key}"
+
+        request = urllib.request.Request(
+            area_uri,
+            data=payload_bytes,
+            method="PUT",
+            headers={"Content-Type": "application/json"},
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=30) as response:
+                result = response.read().decode("utf-8").strip().lower()
+            if result != "true":
+                logger.warning(f"kv write returned non-true response: {result}")
+        except urllib.error.URLError as exc:
+            raise RuntimeError(f"failed to upload area payload to {area_uri}") from exc
+
+        area_hash = Web3.keccak(payload_bytes)
+
+        func = self.contract.functions.UploadArea(
+            person.role,
+            person.address,
+            area_uri,
+            area_hash,
+        )
+
+
+        return self.send_transaction(func, person)
+    
+    def check_area(self, person: Person) -> bool:
+        
+        area_key = self._get_person_key(person)
+
+        area_uri = f"{self.http_url}/{area_key}"
+
+        try:
+            with urllib.request.urlopen(area_uri, timeout=30) as response:
+                result = response.read().decode("utf-8").strip().lower()
+            return result == "true"
+        except urllib.error.URLError as exc:
+            logger.error(f"failed to check area payload at {area_uri}")
+            return False
+        result_hash = Web3.keccak(json.dumps(result, sort_keys=True, separators=(",", ":")).encode("utf-8"))
+        return result_hash == self.contract.functions.get_area_hash(person.role, person.address).call()
+
+    def upload_disease(self, person: Person) -> TransactionResult:
+        disease_codes = [diseaseCode2Int(d) for d in person.disease_items]
+
+        disease_payload = {
+            "role": person.role,
+            "address": person.address,
+            "disease_codes": disease_codes,
+        }
+        payload_bytes = json.dumps(
+            disease_payload, sort_keys=True, separators=(",", ":")
+        ).encode("utf-8")   
+        kv_base_url = os.getenv(
+            "CONSENT_KV_BASE_URL", "http://localhost:8500/v1/kv/consent/disease"
+        ).rstrip("/")
+        disease_key = self._get_person_key(person)
+        disease_uri = f"{self.http_url}/{disease_key}"    
+        request = urllib.request.Request(
+            disease_uri,
+            data=payload_bytes,
+            method="PUT",
+            headers={"Content-Type": "application/json"},
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=30) as response:
+                result = response.read().decode("utf-8").strip().lower()
+            if result != "true":
+                logger.warning(f"kv write returned non-true response: {result}")
+        except urllib.error.URLError as exc:
+            raise RuntimeError(f"failed to upload disease payload to {disease_uri}") from exc       
+        disease_hash = Web3.keccak(payload_bytes)
+        func = self.contract.functions.UploadDisease(
+            person.role,
+            person.address,
+            disease_uri,
+            disease_hash,
+        )
+
+        return self.send_transaction(func, person)
+    
+    def check_disease(self, person: Person) -> bool:
+        
+        disease_key = self._get_person_key(person)
+        disease_uri = f"{self.http_url}/{disease_key}"
+
+        try:
+            with urllib.request.urlopen(disease_uri, timeout=30) as response:
+                result = response.read().decode("utf-8").strip().lower()
+            return result == "true"
+        except urllib.error.URLError as exc:
+            logger.error(f"failed to check disease payload at {disease_uri}")
+            return False
+        result_hash = Web3.keccak(json.dumps(result, sort_keys=True, separators=(",", ":")).encode("utf-8"))
+        return result_hash == self.contract.functions.get_disease_hash(person.role, person.address).call()
+
+    def delete_area(self, person: Person) -> TransactionResult:
+        # country_codes = [country_order_dict[c] for c in person.country_names]
+
+        # # print("UploadCountryItems", country_codes)
+        # if hasattr(self, "group_names"):
+        #     group_codes = [group_index_dict[g] for g in person.group_names]
+        # else:
+        #     group_codes = []
+
+        func = self.contract.functions.delete_area(
+            person.role,
+            person.address,
+        )
+        # self.send_transaction(func)
+
+        return self.send_transaction(func, person)
+
+    def delete_disease(self, person):
+        func = self.contract.functions.delete_disease(
+            person.role, person.address
         )
         return self.send_transaction(func, person)
 
-    # def access(self):
-    #     return self.access()
+
+    def access(self):
+        area_result = self.check_area(self.provider)
+        disease_result = self.check_disease(self.provider)
+        if area_result and disease_result:
+            return {"AccessGranted"}
+        else:
+            return {"AccessDenied"}
+        return self.access()
 
 
 pattern = r"^[A-Z][0-9\*]{2}$"

@@ -414,7 +414,7 @@ contract ConsentBase {
     function basic_access_check(
         address provider_address,
         address requester_address
-    ) private view returns (uint32) {
+    ) internal view returns (uint32) {
         DUO memory provider = provider_mapping[provider_address];
         DUO memory requester = requester_mapping[requester_address];
 
@@ -554,7 +554,7 @@ contract ConsentBase {
     function access_data(
         address provider_address,
         address requester_address
-    ) public view returns (uint32) {
+    ) public virtual view returns (uint32) {
         DUO memory provider = provider_mapping[provider_address];
         DUO memory requester = requester_mapping[requester_address];
 

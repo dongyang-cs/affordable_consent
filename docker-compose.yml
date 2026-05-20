@@ -10,3 +10,12 @@ services:
       - VIRTUAL_PORT=8545
     volumes:
       - ${STORAGE_PATH:-./running_data}/ganache_db:/ganache_db
+
+  kv_http:
+    image: hashicorp/consul:1.19
+    restart: unless-stopped
+    command: agent -dev -client=0.0.0.0 -ui
+    ports:
+      - 8500:8500
+
+

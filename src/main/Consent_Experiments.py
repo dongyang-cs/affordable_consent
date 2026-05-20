@@ -17,6 +17,8 @@ from Consent_Model import (
     RESULT_CODE,
     Environment,
     Contract,
+    Contracts,
+    Contract_Offline,
 )
 
 from Consent_Model import (
@@ -47,128 +49,119 @@ class Experiment_Performance:
         self,
         contract_baseline: Contract_Baseline,
         contract_affordable: Contract_Affordable,
+        contract_offline: Contract_Offline,
         enable_online=False,
     ):
         self.enable_online = enable_online
         self.env = contract_affordable.env
         self.contract_baseline = contract_baseline
         self.contract_affordable = contract_affordable
+        self.contract_offline = contract_offline
+        self.contract_list = [contract_baseline, contract_affordable, contract_offline]
+        # self.contract_list = [contract_offline]
         # self.intervals = [100]
         self.intervals = [20, 40, 60, 80, 100]
-        self.font_size = "21"
-        self.column_width = 3
-
-        class DataKey:
-            BASELINE_LOCAL = "baseline_local"
-            AFFORDABLE_LOCAL = "affordable_local"
-            BASELINE_POLYGON = "baseline_polygon"
-            AFFORDABLE_POLYGON = "affordable_polygon"
-
-        self.data_key_enum = DataKey
-        self.data_key_label = {
-            self.data_key_enum.BASELINE_LOCAL: {
-                "label": "Baseline\n(Ganache)",
-                "color": "lightcoral",
-            },
-            self.data_key_enum.AFFORDABLE_LOCAL: {
-                "label": "Proposed\n(Ganache)",
-                "color": "yellow",
-            },
-            self.data_key_enum.BASELINE_POLYGON: {
-                "label": "Baseline\n(Amoy)",
-                "color": "royalblue",
-            },
-            self.data_key_enum.AFFORDABLE_POLYGON: {
-                "label": "Proposed\n(Amoy)",
-                "color": "turquoise",
-            },
-        }
+        self.result_folder = path.RESULT_DIR / "performance"
 
     def start(self):
-        self._test_area()
-        self._test_disease(one_group=True)
-        self._test_disease(one_group=False)
+        for contract in self.contract_list:
+            result_area = self._test_area(contract)
+            result_disease_one_group = self._test_disease(contract, one_group=True)
+            result_disease_whole_group = self._test_disease(contract, one_group=False)
+            result = {
+                "area": result_area,
+                "disease_one": result_disease_one_group,
+                "disease_whole": result_disease_whole_group
+            }
+            result_fp = (
+            self.result_folder
+                / f"{self.env.name}_{contract.name}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+            )
+            json.dump(result, open(result_fp, "w"), indent=4)
 
-    def _test_disease(self, one_group=False):
+
+    def _test_disease(self, contract, one_group=False):
         provider1, requester1 = self._initialize_provider_requester("disease")
-        # intevals = [0, 20, 40, 60, 80, 100]
-        disease_data = []
-        groups = [c for c in string.ascii_uppercase]
         disease_list_all = disease_dict["A"] if one_group else disease_list
+        return self._test_upload("disease", provider1, requester1, contract, disease_list_all)
 
-        for interval in tqdm(self.intervals):
-            disease_items = self._generate_items(disease_list_all, interval)
-            provider1.disease_items = disease_items
-            requester1.disease_items = disease_items
-            self._prepare_entities(provider1, requester1)
+        # result_affordable_fp = (
+        #     path.RESULT_DIR
+        #     / f"{self.env.name}_disease_{'one' if one_group else 'whole'}_affordable_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.json"
+        # )
+        # json.dump(result_affordable, open(result_affordable_fp, "w"), indent=4)
+        # result_baseline_fp = (
+        #     path.RESULT_DIR
+        #     / f"{self.env.name}_disease_{'one' if one_group else 'whole'}_baseline_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.json"
+        # )
+        # json.dump(result_baseline, open(result_baseline_fp, "w"), indent=4)
+        # result_offline_fp = (
+        #     self.result_folder
+        #     / f"{self.env.name}_disease_{'one' if one_group else 'whole'}_offline_{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.json"
+        # )
+        # json.dump(result_offline, open(result_offline_fp, "w"), indent=4)
 
-            result_provider_baseline = self.contract_baseline.upload_disease(provider1)
-            result_requester_baseline = self.contract_baseline.upload_disease(
-                requester1
-            )
-            result_provider_affordable = self.contract_affordable.upload_disease(
-                provider1
-            )
-            result_requester_affordable = self.contract_affordable.upload_disease(
-                requester1
-            )
+    
+    
 
-            disease_data.append(
+    def _test_upload(self, entity_type, provider, requester, contract, items_source=None):
+        """Generic upload tester for 'area' or 'disease'.
+
+        - entity_type: 'area' or 'disease'
+        - items_source: optional list to sample from for diseases
+        """
+        result_list = []
+        for interval in self.intervals:
+            if entity_type == "area":
+                items = self._generate_items(list(country_code_dict.keys()), interval)
+                # logger.debug(f"Testing {entity_type} with interval {interval}%: {len(items)} items")
+                provider.country_names = items
+                requester.country_names = items
+            elif entity_type == "disease":
+                source = items_source if items_source is not None else disease_list
+                items = self._generate_items(source, interval)
+                provider.disease_items = items
+                requester.disease_items = items
+            else:
+                raise ValueError(f"Unknown entity_type: {entity_type}")
+
+            self._prepare_entities(provider, requester)
+
+            if entity_type == "area":
+                result_provider = contract.upload_area(provider)
+                result_requester = contract.upload_area(requester)
+            else:
+                result_provider = contract.upload_disease(provider)
+                result_requester = contract.upload_disease(requester)
+
+            result_list.append(
                 {
                     "interval": interval,
-                    "affordable": {
-                        "provider": result_provider_affordable.to_dict(),
-                        "requester": result_requester_affordable.to_dict(),
-                    },
-                    "baseline": {
-                        "provider": result_provider_baseline.to_dict(),
-                        "requester": result_requester_baseline.to_dict(),
-                    },
+                    "provider": result_provider.to_dict(),
+                    "requester": result_requester.to_dict(),
                 }
             )
+        return result_list
 
-        result_fp = (
-            path.RESULT_DIR
-            / f"{self.env.name}_disease_{'one' if one_group else 'whole'}.json"
-        )
-        json.dump(disease_data, open(result_fp, "w"), indent=4)
-
-    def _test_area(self, label=""):
+    def _test_area(self, contract, label=""):
         provider1, requester1 = self._initialize_provider_requester("area")
-        # intevals = [0, 20, 40, 60, 80, 100]
-        data_result = []
+        return self._test_upload("area", provider1, requester1, contract)
 
-        for interval in tqdm(self.intervals):
-            countries = self._generate_items(list(country_code_dict.keys()), interval)
-            provider1.country_names = countries
-            requester1.country_names = countries
-            self._prepare_entities(provider1, requester1)
-
-            provider_affordable_result = self.contract_affordable.upload_area(provider1)
-            requester_affordable_result = self.contract_affordable.upload_area(
-                requester1
-            )
-            provider_baseline_result = self.contract_baseline.upload_area(provider1)
-            requester_baseline_result = self.contract_baseline.upload_area(requester1)
-
-            data_result.append(
-                {
-                    "interval": interval,
-                    "affordable": {
-                        "provider": provider_affordable_result.to_dict(),
-                        "requester": requester_affordable_result.to_dict(),
-                    },
-                    "baseline": {
-                        "provider": provider_baseline_result.to_dict(),
-                        "requester": requester_baseline_result.to_dict(),
-                    },
-                }
-            )
-        json.dump(
-            data_result,
-            open(path.RESULT_DIR / f"{self.env.name}_area{label}.json", "w"),
-            indent=4,
-        )
+        # json.dump(
+        #     data_result_affordable,
+        #     open(self.result_folder / f"{self.env.name}_area{label}_affordable_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.json", "w"),
+        #     indent=4,
+        # )
+        # json.dump(
+        #     data_result_baseline,
+        #     open(self.result_folder / f"{self.env.name}_area{label}_baseline_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.json", "w"),
+        #     indent=4,
+        # )
+        # json.dump(
+        #     data_result,
+        #     open(self.result_folder / f"{self.env.name}_area{label}_offline_{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.json", "w"),
+        #     indent=4,
+        # )
 
     def _initialize_provider_requester(self, entity_type):
         provider = Provider(
@@ -188,343 +181,249 @@ class Experiment_Performance:
         return random.choices(items_list, k=max(1, choiced_number))
 
     def _prepare_entities(self, provider, requester):
-        if self.env.name == TestEnum.polygon.name:
-            self.contract_affordable.delete_area(provider)
-            self.contract_baseline.delete_area(provider)
+        # if self.env.name == TestEnum.polygon.name:
+        for contract in self.contract_list:
+            contract.delete_area(provider)
+            contract.delete_disease(provider)
 
-            self.contract_affordable.delete_area(requester)
-            self.contract_baseline.delete_area(requester)
-        else:
-            provider.address = self.env.accounts.pop()
-            requester.address = self.env.accounts.pop()
+            contract.delete_disease(requester)
+            contract.delete_area(requester)
+        # else:
+        #     provider.address = self.env.accounts[0]
+        #     requester.address = self.env.accounts[0]
 
-    def _plot_area(
+
+class Experiment_Performance_Plotter:
+    def __init__(
         self,
-        key_index_name="time_used",
-        factor=1e6,
-        y_label="Time usage (milliseconds)",
-        label="",
+        env_name,
+        result_folder,
+        intervals,
+        font_size="20",
+        column_width=2.5,
+        column_styles: dict | None = None,
     ):
-        result_polygon, result_local = self._load_and_filter_results(
-            TestEnum.polygon.name, TestEnum.local.name, "area", label=label
+        self.env_name = env_name
+        self.result_folder = result_folder
+        self.intervals = intervals
+        self.font_size = font_size
+        self.column_width = column_width
+        self.local_baseline = json.load(
+            open(f"{self.result_folder}/Local_baseline_20260517_104616.json", "r")
         )
-        gas_provider, gas_requester = self._prepare_plot_data(
-            result_polygon,
-            result_local,
-            key_index_name,
-            "_polygon",
-            "_local",
-            # label=label,
+        self.local_affordable = json.load(
+            open(f"{self.result_folder}/Local_affordable_20260517_000802.json", "r")
         )
-        task = f"area_{key_index_name}_{label}"
-        self._plot_columns(
-            gas_provider,
-            gas_requester,
-            task,
-            "Precentage of uploaded countries",
-            y_label,
-            factor,
+        self.local_offline = json.load(
+            open(f"{self.result_folder}/Local_offline_20260517_001020.json", "r")
         )
 
-    def _plot_disease(
-        self,
-        key_index_name="time_used",
-        factor=1e6,
-        y_label="Time Usage (milliseconds)",
-        label="",
-    ):
-        result_one_polygon, result_one_local = self._load_and_filter_results(
-            TestEnum.polygon.name, TestEnum.local.name, "disease_one", label=label
+        self.polygon_offline = json.load(
+            open(f"{self.result_folder}/Polygon_offline_20260516_130700.json", "r")
         )
-        result_whole_polygon, result_whole_local = self._load_and_filter_results(
-            TestEnum.polygon.name, TestEnum.local.name, "disease_whole", label=label
+        self.polygon_baseline = json.load(
+            open(f"{self.result_folder}/Polygon_baseline_20260516_125600.json", "r")
         )
-        provider_whole, requester_whole = self._prepare_plot_data(
-            result_whole_polygon,
-            result_whole_local,
-            key_index_name,
-            "_polygon",
-            "_local",
-        )
-        provider_one, requester_one = self._prepare_plot_data(
-            result_one_polygon, result_one_local, key_index_name, "_polygon", "_local"
-        )
-        self._plot_columns(
-            provider_whole,
-            requester_whole,
-            f"disease_whole_{key_index_name}_{label}",
-            "Precentage of uploaded diseases",
-            y_label,
-            factor,
-        )
-        self._plot_columns(
-            provider_one,
-            requester_one,
-            f"disease_one_{key_index_name}_{label}",
-            "Precentage of uploaded diseases",
-            y_label,
-            factor,
+        self.polygon_affordable = json.load(
+            open(f"{self.result_folder}/Polygon_affordable_20260516_130115.json", "r")
         )
 
-    def _load_and_filter_results(self, polygon_name, local_name, result_type, label=""):
-        result_polygon = json.load(
-            open(f"result/{polygon_name}_{result_type}{label}.json", "r")
-        )
-        result_local = json.load(
-            open(f"result/{local_name}_{result_type}{label}.json", "r")
-        )
-        # used_intervals = [0, 20, 40, 60, 80, 100]
-        result_polygon = [d for d in result_polygon if d["interval"] in self.intervals]
+        # single source of truth for column layout and appearance
+        default_styles = {
+            "baseline_local": {
+                "offset": -2.7,
+                "label": "Baseline\n(Ganache)",
+                "color": "lightcoral",
+            },
+            "affordable_local": {
+                "offset": -1.7,
+                "label": "Proposed\n(Ganache)",
+                "color": "yellow",
+            },
+            "offline_local": {
+                "offset": -0.7,
+                "label": "Offline\n(Ganache)",
+                "color": "violet",
+            },
+            "baseline_polygon": {
+                "offset": 0.7,
+                "label": "Baseline\n(Amoy)",
+                "color": "royalblue",
+            },
+            "affordable_polygon": {
+                "offset": 1.7,
+                "label": "Proposed\n(Amoy)",
+                "color": "turquoise",
+            },
+            "offline_polygon": {
+                "offset": 2.7,
+                "label": "Offline\n(Amoy)",
+                "color": "skyblue",
+            },
+        }
+
+        # allow caller to override styles for columns
+        self.column_styles = default_styles if column_styles is None else {**default_styles, **column_styles}
+        # compatibility view: label/color map derived from column_styles
+ 
+
+    def _load_and_filter_results(self, polygon_name, result_type, label=""):
+        # result_polygon = json.load(
+        #     open(f"{self.result_folder}/{polygon_name}_{result_type}{label}.json", "r")
+        # )
+        polygon_baseline = self.polygon_baseline[result_type]
+        polygon_affordable = self.polygon_affordable[result_type]
+        polygon_offline = self.polygon_offline[result_type]
+
+        local_baseline = self.local_baseline[result_type]
+        local_affordable = self.local_affordable[result_type]
+        local_offline = self.local_offline[result_type]
+        result_local = [
+            {
+                "interval": baseline["interval"],
+                "baseline": baseline,
+                "affordable": affordable,
+                "offline": offline,
+            }
+            for baseline, affordable, offline in zip(
+                local_baseline, local_affordable, local_offline
+            )
+        ]
+
+        result_polygon = [
+             {
+                "interval": baseline["interval"],
+                "baseline": baseline,
+                "affordable": affordable,
+                "offline": offline,
+            }
+            for baseline, affordable, offline in zip(
+                polygon_baseline, polygon_affordable, polygon_offline
+            )
+        ]
+
+        # polygon_offline = json.load(
+        #     open(f"{self.result_folder}/Polygon_offline_2026-05-15_09-29-28.json", "r")
+        # )[result_type]
+        # polygon_offline_key_interval_map = {d["interval"]: d for d in polygon_offline}
+        # for d in result_polygon:
+        #     interval = d["interval"]
+        #     if interval in polygon_offline_key_interval_map:
+        #         d["offline"] = polygon_offline_key_interval_map[interval]
+        #     else:
+        #         d["offline"] = None
+       
         result_local = [d for d in result_local if d["interval"] in self.intervals]
+        result_polygon = [d for d in result_polygon if d["interval"] in self.intervals]
+
 
         assert len(result_polygon) == len(
             result_local
         ), f"Length mismatch: {len(result_polygon)} vs {len(result_local)}"
         return result_polygon, result_local
 
-    def _prepare_plot_data(
+    def _merge_plot_data(
         self, result_polygon, result_local, key_index_name, polygon_label, local_label
     ):
-        provider_data = self._plot_transform(
-            result_local, "provider", key_index_name, local_label
-        ) | self._plot_transform(
-            result_polygon, "provider", key_index_name, polygon_label
-        )
-        requester_data = self._plot_transform(
-            result_local, "requester", key_index_name, local_label
-        ) | self._plot_transform(
-            result_polygon, "requester", key_index_name, polygon_label
-        )
-        return provider_data, requester_data
-
-    def _plot_columns(
-        self, provider_data, requester_data, task, x_label, y_label, factor
-    ):
-        self._generate_column_chart(
-            provider_data, task, "provider", x_label, y_label, factor
-        )
-        # self._generate_column_chart(
-        #     requester_data, task, "requester", x_label, y_label, factor
-        # )
-
-    def _sparse_filter(
-        self, data_local, data_polygon, key="time_used", label="", factor=1e6
-    ):
-        local_100 = [d for d in data_local if d["interval"] == 100][0]
-        polygon_100 = [d for d in data_polygon if d["interval"] == 100][0]
-        result = {
-            self.data_key_enum.BASELINE_LOCAL: local_100["baseline"]["provider"][key],
-            self.data_key_enum.AFFORDABLE_LOCAL: local_100["affordable"]["provider"][
-                key
+        return {
+            f"baseline{local_label}": [
+                item["baseline"]["provider"][key_index_name] for item in result_local
             ],
-            self.data_key_enum.BASELINE_POLYGON: polygon_100["baseline"]["provider"][
-                key
+            f"affordable{local_label}": [
+                item["affordable"]["provider"][key_index_name] for item in result_local
             ],
-            self.data_key_enum.AFFORDABLE_POLYGON: polygon_100["affordable"][
-                "provider"
-            ][key],
+            f"offline{local_label}": [
+                item["offline"]["provider"][key_index_name] for item in result_local
+            ],
+            f"baseline{polygon_label}": [
+                item["baseline"]["provider"][key_index_name] for item in result_polygon
+            ],
+            f"affordable{polygon_label}": [
+                item["affordable"]["provider"][key_index_name] for item in result_polygon
+            ],
+            f"offline{polygon_label}": [
+                item["offline"]["provider"][key_index_name] for item in result_polygon
+            ],
+            "interval": [item["interval"] for item in result_local],
         }
 
-        for key in self.data_key_label.keys():
-            result[key] = result[key] / factor
-        return result
-
-    def _sparse_plot_time(self, label=""):
-        result_polygon, result_local = self._load_and_filter_results(
-            TestEnum.polygon.name, TestEnum.local.name, "area", label=label
-        )
-        result_one_polygon, result_one_local = self._load_and_filter_results(
-            TestEnum.polygon.name, TestEnum.local.name, "disease_one", label=label
-        )
-        result_whole_polygon, result_whole_local = self._load_and_filter_results(
-            TestEnum.polygon.name, TestEnum.local.name, "disease_whole", label=label
-        )
-        geographic_data_time = self._sparse_filter(
-            result_local, result_polygon, "time_used"
-        )
-        disease_one_data_time = self._sparse_filter(
-            result_one_local, result_one_polygon, "time_used"
-        )
-        disease_whole_data_time = self._sparse_filter(
-            result_whole_local, result_whole_polygon, "time_used"
-        )
-        self._plot_sparse(
-            geographic_data_time,
-            "area_time",
-            "provider",
-            "Interval",
-            "Time Used(milliseconds)",
-        )
-        self._plot_sparse(
-            disease_one_data_time,
-            "disease_one_time",
-            "provider",
-            "Interval",
-            "Time Used(milliseconds)",
-        )
-        self._plot_sparse(
-            disease_whole_data_time,
-            "disease_whole_time",
-            "provider",
-            "Interval",
-            "Time Used(milliseconds)",
-        )
-
-        geographic_data_time = self._sparse_filter(
-            result_local, result_polygon, "gas_used", factor=1e3
-        )
-        disease_one_data_time = self._sparse_filter(
-            result_one_local, result_one_polygon, "gas_used", factor=1e3
-        )
-        disease_whole_data_time = self._sparse_filter(
-            result_whole_local, result_whole_polygon, "gas_used", factor=1e3
-        )
-        self._plot_sparse(
-            geographic_data_time,
-            "area_gas",
-            "provider",
-            "Interval",
-            "Gas Used(1000 units)",
-        )
-        self._plot_sparse(
-            disease_one_data_time,
-            "disease_one_gas",
-            "provider",
-            "Interval",
-            "Gas Used(1000 units)",
-        )
-        self._plot_sparse(
-            disease_whole_data_time,
-            "disease_whole_gas",
-            "provider",
-            "Interval",
-            "Gas Used(1000 units)",
-        )
-
-    def _generate_column_chart(self, data, task, role, x_label, y_label, factor=1e3):
-        import matplotlib.pyplot as plt
-
-        patterns = ["/", "\\", "|", "-", "+", "x", "o", "O", ".", "*"]
+    def _generate_column_chart(self, data, task, y_label, factor=1e3):
         data_frame = pd.DataFrame(data)
-        fig, ax1 = plt.subplots(figsize=(11, 4), dpi=300)
-        # figsize=(10, 3), dpi=300
-        # self.column_width = 4.5
+        fig, ax1 = plt.subplots(figsize=(11, 5), dpi=300)
         alpha = 1.0
-        # data_font_size = "8"
-        baseline_local_x = data_frame["interval"] - 1.5 * self.column_width
-        affordable_local_x = data_frame["interval"] - 0.5 * self.column_width
-        baseline_polygon_x = data_frame["interval"] + 0.5 * self.column_width
-        affordable_polygon_x = data_frame["interval"] + 1.5 * self.column_width
+        # compute x positions from configurable column_styles
+        pos = {}
+        for name, style in self.column_styles.items():
+            pos[name] = data_frame["interval"] + style.get("offset", 0) * self.column_width
 
-        keys = data.keys() - ["interval"]
+        keys = [key for key in data.keys() if key != "interval"]
         for k in keys:
             data_frame[k] = data_frame[k].astype(int)
-            data_frame[k] = (data_frame[k] / factor).astype(int)
+            data_frame[k] = (data_frame[k] / factor)
 
-        baseline_local_bars = self._plot_bar(
-            ax1,
-            baseline_local_x,
-            data_frame["baseline_local"],
-            "Baseline (Ganache)",
-            "lightcoral",
-            alpha,
-            self.column_width,
-        )
-
-        # for spine in ax1.spines.values():
-        #     spine.set_visible(True)
-        affordable_local_bars = self._plot_bar(
-            ax1,
-            affordable_local_x,
-            data_frame["affordable_local"],
-            "Proposed (Ganache)",
-            "yellow",
-            alpha,
-            self.column_width,
-        )
-        baseline_polygon_bars = self._plot_bar(
-            ax1,
-            baseline_polygon_x,
-            data_frame["baseline_polygon"],
-            "Baseline (Amoy)",
-            "royalblue",
-            alpha,
-            self.column_width,
-        )
-        affordable_polygon_bars = self._plot_bar(
-            ax1,
-            affordable_polygon_x,
-            data_frame["affordable_polygon"],
-            "Proposed (Amoy)",
-            "turquoise",
-            alpha,
-            self.column_width,
-        )
-        # Add horizontal line as ruler for every  main ylabel. e.g. 1000, 2000, 3000
+        # draw bars according to configured styles
+        for col_name in [
+            "baseline_local",
+            "affordable_local",
+            "offline_local",
+            "baseline_polygon",
+            "affordable_polygon",
+            "offline_polygon",
+        ]:
+            if col_name not in data_frame.columns:
+                continue
+            style = self.column_styles.get(col_name, {})
+            x = pos.get(col_name, data_frame["interval"]) 
+            label = style.get("label", col_name)
+            color = style.get("color", "grey")
+            ax1.bar(
+                x,
+                data_frame[col_name],
+                width=self.column_width,
+                label=label,
+                color=color,
+                alpha=alpha,
+                edgecolor="black",
+            )
         y_ticks = ax1.get_yticks()
-
-        # print(data_frame["interval"])
-        # for i in y_ticks:
-        #     ax1.axhline(i, color="gray", linestyle="--", linewidth=0.5)
         ax1.set_yticklabels([f"{int(y)}" for y in y_ticks], fontsize=self.font_size)
         y_max = max([data_frame[k].max() for k in keys])
         ax1.set_ylim(0, y_max * 1.05)
-        # ax1.set_xlabel(x_label, fontsize=self.font_size)
-        # ax1.margins(y=0.1)
         ax1.set_ylabel(y_label, fontsize=self.font_size)
-        # ax1.tick_params(axis="y")
-        # ax1.set_xticks(data_frame["interval"])
-        # ax1.tick_params(axis="x", labelsize=data_font_size)
-        xticklabels = [0] + [f"{int(interval)}%" for interval in data_frame["interval"]]
-        print("xticklabels", xticklabels)
+        intervals = [0] + data_frame["interval"].tolist()
+        xticklabels = [f"{int(interval)}%" for interval in intervals]
+        ax1.set_xticks(intervals)
         ax1.set_xticklabels(xticklabels, fontsize=self.font_size)
 
-        plt.savefig(path.FIGURE_DIR / f"column_{task}_{role}.pdf")
-
-    def _plot_bar(self, ax, x, y, label, color, alpha, width):
-        return ax.bar(
-            x, y, width=width, label=label, color=color, alpha=alpha, edgecolor="black"
-        )
-
-    def _add_bar_labels(self, ax, bars, font_size):
-        for bar in bars:
-            yval = bar.get_height()
-            xval = bar.get_x() + bar.get_width() / 2
-            ax.text(xval, yval, yval, ha="center", va="bottom", fontsize=font_size)
-
-    def _plot_transform(self, data_list, role, column, label=""):
-        return {
-            f"baseline{label}": [d["baseline"][role][column] for d in data_list],
-            f"affordable{label}": [d["affordable"][role][column] for d in data_list],
-            "interval": [d["interval"] for d in data_list],
-        }
+        plt.savefig(path.FIGURE_DIR / f"column_{task}_provider.pdf")
 
     def plot(self, label=""):
-        self._plot_area(
-            label=label,
-            key_index_name="time_used",
-            factor=1e6,
-            y_label="Time usage (milliseconds)",
-        )
-        self._plot_disease(
-            label=label,
-            key_index_name="time_used",
-            factor=1e6,
-            y_label="Time usage (milliseconds)",
-        )
+        plot_specs = [
+            ("area", "time_used", "Time usage (milliseconds)", 1e6),
+            ("disease_one", "time_used", "Time usage (milliseconds)", 1e6),
+            ("disease_whole", "time_used", "Time usage (milliseconds)", 1e6),
+            ("area", "gas_used", "Gas usage (thousand gas)", 1e3),
+            ("disease_one", "gas_used", "Gas usage (thousand gas)", 1e3),
+            ("disease_whole", "gas_used", "Gas usage (thousand gas)", 1e3),
+        ]
 
-        self._plot_area(
-            key_index_name="gas_used",
-            factor=1e3,
-            y_label="Gas usage (thousand gas)",
-            label=label,
-        )
-        self._plot_disease(
-            key_index_name="gas_used",
-            factor=1e3,
-            y_label="Gas usage (thousand gas)",
-            label=label,
-        )
+        for result_type, key_index_name, y_label, factor in plot_specs:
+            result_polygon, result_local = self._load_and_filter_results(
+                TestEnum.polygon.name, result_type, label=label
+            )
+            data = self._merge_plot_data(
+                result_polygon,
+                result_local,
+                key_index_name,
+                "_polygon",
+                "_local",
+            )
+            self._generate_column_chart(
+                data,
+                f"{result_type}_{key_index_name}_{label}",
+                y_label,
+                factor,
+            )
 
 
 class Simulation_Scenarios:
@@ -891,6 +790,8 @@ class Experiment_Simulation:
 
 class Experiment_Case_Study:
     def __init__(self, contract: Base_Contract):
+        if contract.env.name != TestEnum.local.name:
+            raise ValueError("Case study is only supported in local environment")
         self.env = contract.env
         self.contract = contract
         self.init_person()
@@ -904,162 +805,133 @@ class Experiment_Case_Study:
 
     def init_person(self):
         provider1 = Provider(
-            name="Provider 1",
+            name="Provider a",
             env=self.env,
             description=r"Provider.\ref{provider:a}",
-            bool_items={DUO.NoRestriction},
-            # country_names=["*"],
-            # disease_items=["*"],
+            bool_items={DUO.DiseaseSpecific, DUO.GeographicSpecific},
+            country_names=["USA"],
+            group_names=["EU"],
+            disease_items=["A**", "B**"],
+            address=self.env.accounts.pop(),
         )
         provider2 = Provider(
-            name="Provider 2",
+            name="Provider b",
             env=self.env,
             description=r"Provider.\ref{provider:b}",
-            bool_items={DUO.DiseaseSpecific},
-            # country_names=["*"],
+            bool_items={DUO.DiseaseSpecific, DUO.GeographicSpecific},
+            country_names=["USA"],
+            group_names=["EU"],
             disease_items=["A**", "B01"],
+            address=self.env.accounts.pop(),
         )
 
         provider3 = Provider(
-            name="Provider 3",
+            name="Provider c",
             env=self.env,
             description=r"Provider.\ref{provider:c}",
-            bool_items={DUO.GeographicSpecific},
-            country_names=["USA"],
+            bool_items={
+                DUO.GeographicSpecific,
+                DUO.TimeLimitOnUse,
+                DUO.DiseaseSpecific,
+                DUO.GeneticStudiesOnly,
+            },
             group_names=["EU"],
-            # disease_items=["*"],
-        )
-
-        provider4 = Provider(
-            name="Provider 4",
-            env=self.env,
-            description=r"Provider.\ref{provider:d}",
-            bool_items={DUO.TimeLimitOnUse},
-            # country_names=["*"],
+            disease_items=["A**"],
             start_year=2026,
             start_month=1,
             start_day=1,
             hold_month=6,
-            # disease_items=["*"],
+            address=self.env.accounts.pop(),
         )
-        provider5 = Provider(
-            name="Provider 5",
-            env=self.env,
-            description=r"Provider.\ref{provider:e}",
-            bool_items={DUO.GeneticStudiesOnly},
-            # country_names=["*"],
-            # disease_items=["*"],
-        )
+
 
         requester1 = Requester(
             name="Requester 1",
             env=self.env,
-            description="Requester1",
-            bool_items={DUO.TimeLimitOnUse},
+            description=r"Requester.\ref{requester:1}",
+            bool_items={DUO.DiseaseSpecific, DUO.GeographicSpecific, DUO.TimeLimitOnUse},
+            disease_items=["A01"],
+            country_names=["USA"],
             start_year=2026,
             start_month=1,
             start_day=1,
             hold_month=6,
+            address=self.env.accounts.pop(),
         )
         requester2 = Requester(
             name="Requester 2",
             env=self.env,
-            description="Requester2",
-            bool_items={DUO.DiseaseSpecific},
-            disease_items=["A01"],
-            # country_names=["*"],
+            description=r"Requester.\ref{requester:2}",
+            bool_items={DUO.DiseaseSpecific, DUO.GeographicSpecific, DUO.TimeLimitOnUse},
+            disease_items=["B02"],
+            country_names=["THA", "USA"],
+            start_year=2026,
+            start_month=1,
+            start_day=1,
+            hold_month=6,
+            address=self.env.accounts.pop(),
         )
 
         requester3 = Requester(
             name="Requester 3",
             env=self.env,
-            description="Requester3",
-            bool_items={DUO.DiseaseSpecific},
-            disease_items=["B02"],
-            # country_names=["*"],
+            description=r"Requester.\ref{requester:3}",
+            bool_items={DUO.DiseaseSpecific, DUO.GeographicSpecific, DUO.TimeLimitOnUse},
+            disease_items=["B01"],
+            country_names=["NLD"],
+            group_names=["EU"],
+            start_year=2026,
+            start_month=1,
+            start_day=1,
+            hold_month=6,
+            address=self.env.accounts.pop(),
         )
-        # 128 bits
-        # describe in paper
-        # 256 bits
 
         requester4 = Requester(
             name="Requester 4",
             env=self.env,
-            description="Requester4",
-            bool_items={DUO.GeographicSpecific},
+            description=r"Requester.\ref{requester:4}",
+            bool_items={DUO.DiseaseSpecific, DUO.GeographicSpecific, DUO.TimeLimitOnUse},
+            disease_items=["A02"],
             country_names=["USA"],
-            # disease_items=["*"],
+            start_year=2026,
+            start_month=1,
+            start_day=1,
+            hold_month=12,
+            address=self.env.accounts.pop(),
         )
 
         requester5 = Requester(
             name="Requester 5",
             env=self.env,
-            description="Requester5",
-            bool_items={DUO.GeographicSpecific},
-            country_names=["NLD"],
-            # disease_items=["*"],
-        )
-
-        requester6 = Requester(
-            name="Requester 6",
-            env=self.env,
-            description="Requester6",
-            bool_items={DUO.GeographicSpecific},
-            country_names=["USA", "THA"],
-            # disease_items=["*"],
-        )
-
-        requester7 = Requester(
-            name="Requester 7",
-            env=self.env,
-            description="Requester7",
-            bool_items={DUO.GeographicSpecific},
-            # country_names = [],
+            description=r"Requester.\ref{requester:5}",
+            bool_items={
+                DUO.GeographicSpecific,
+                DUO.DiseaseSpecific,
+                DUO.TimeLimitOnUse,
+                DUO.GeneticStudiesOnly,
+            },
+            disease_items=["A01"],
             group_names=["EU"],
-            # disease_items=["*"],
-        )
-
-        requester8 = Requester(
-            name="Requester 8",
-            env=self.env,
-            description="Requester8",
-            bool_items={DUO.TimeLimitOnUse},
             start_year=2026,
             start_month=1,
             start_day=1,
-            hold_month=12,
-            # country_names=["*"],
-            # disease_items=["*"],
+            hold_month=6,
+            address=self.env.accounts.pop(),
         )
 
-        requester9 = Requester(
-            name="Requester 9",
-            env=self.env,
-            description="Requester9",
-            bool_items={DUO.GeneticStudiesOnly},
-            # start_year=2026,
-            # start_month=1,
-            # start_day=1,
-            # hold_month=6,
-            # country_names=["*"],
-            # disease_items=["*"],
-        )
 
         r = self.contract.update_area_group_relation()
         # v,c,g = provider1.contract.functions.DisplayCountryGroupRelation().call()
         print("update_area_group_code ", r)
 
-        self.provider_list = [provider1, provider2, provider3, provider4, provider5]
+        self.provider_list = [provider1, provider2, provider3]
         self.requester_list = [
             requester1,
             requester2,
             requester3,
             requester4,
             requester5,
-            requester6,
-            requester7,
-            requester8,
-            requester9,
         ]
         try:
             for i, requester in enumerate(self.requester_list):
@@ -1109,29 +981,34 @@ def main():
         default="local",
         help="Environment to use: local or polygon",
     )
-    parser.add_argument("--case_study", default=False, action="store_true", help="Run case study experiment")
-    parser.add_argument("--simulation", default=True, action="store_true", help="Run simulation experiment")    
+    parser.add_argument("--case_study", default=True, action="store_true", help="Run case study experiment")
+    parser.add_argument("--simulation", default=False, action="store_true", help="Run simulation experiment")    
     parser.add_argument("--performance", default=False, action="store_true", help="Run performance experiment")
 
-    args = parser.parse_args()
+    force_deploy = False
 
+    args = parser.parse_args()
+    contracts = Contracts()
     # Setup environment
     environment = Environment()
     if args.env == "local":
         baseline_contract = Contract_Baseline(
-            environment.deploy_contract_local(environment.interface_baseline)
+            environment.deploy_contract_local(contracts.interface_baseline)
         )
         affordable_contract = Contract_Affordable(
-            environment.deploy_contract_local(environment.interface_affordable)
+            environment.deploy_contract_local(contracts.interface_affordable)
         )
+        offline_contract = Contract_Offline(environment.deploy_contract_local(contracts.interface_offline))
     else:
         baseline_contract = Contract_Baseline(
-            environment.deploy_contract_polygon(environment.interface_baseline)
+            environment.deploy_contract_polygon(contracts.interface_baseline, force_deploy=force_deploy)
         )
         affordable_contract = Contract_Affordable(
-            environment.deploy_contract_polygon(environment.interface_affordable)
+            environment.deploy_contract_polygon(contracts.interface_affordable, force_deploy=force_deploy)
         )
-
+        offline_contract = Contract_Offline(
+            environment.deploy_contract_polygon(contracts.interface_offline, force_deploy=force_deploy)
+        )
     # Run experiments
     if args.case_study:
         Experiment_Case_Study(affordable_contract).start()
@@ -1140,16 +1017,17 @@ def main():
         experiment_simulation = Experiment_Simulation(
             affordable_contract, provider_number=100, requester_number=1000
         )
-        experiment_simulation.start()
-        # result_fp = args.result_fp or (path.RESULT_DIR / "result_simulation_09-04-11-44.json")
-        # experiment_simulation.plot()
+        # experiment_simulation.start()
+        result_fp = args.result_fp or (path.RESULT_DIR / "result_simulation_09-04-11-44.json")
+        experiment_simulation.plot()
 
     if args.performance:
         performance = Experiment_Performance(
-            contract_affordable=affordable_contract, contract_baseline=baseline_contract
+            contract_affordable=affordable_contract, contract_baseline=baseline_contract, contract_offline=offline_contract
         )
         performance.start()
-        # performance.plot()
+        performance_plotter =Experiment_Performance_Plotter(args.env, performance.result_folder, performance.intervals)
+        performance_plotter.plot()
 
 
 if __name__ == "__main__":
